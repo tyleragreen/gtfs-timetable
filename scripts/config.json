@@ -1,0 +1,12 @@
+{
+  "mongoUrl": "mongodb://localhost:27017/gtfs",
+  "agencies": [
+    {
+      "agency_key": "transfort",
+      "url": "http://www.ridetransfort.com/img/site_specific/uploads/google_transit.zip",
+      "exclude": [
+        "shapes"
+      ]
+    }
+  ]
+}

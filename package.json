@@ -1,0 +1,31 @@
+{
+  "name": "gtfs-timetable",
+  "version": "0.0.1",
+  "description": "Create public transit timetables from a GTFS feed",
+  "keywords": [
+    "transit",
+    "gtfs",
+    "timetable"
+  ],
+  "author": "Tyler A. Green <greent@tyleragreen.com>",
+  "license": "ISC",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "import": "node scripts/import.js",
+    "mongo": "mongod --smallfiles --dbpath=/data --port 27017"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tyleragreen/gtfs-timetable.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tyleragreen/gtfs-timetable/issues"
+  },
+  "homepage": "https://github.com/tyleragreen/gtfs-timetable#readme",
+  "dependencies": {
+    "mongodb": "^2.2.25",
+    "gtfs": "0.9.4",
+    "mongoose": "4.8.4"
+  }
+}
