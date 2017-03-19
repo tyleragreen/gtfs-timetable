@@ -1,5 +1,5 @@
 const gtfs = require('gtfs');
-const async = require('async');
+const fs = require('fs');
 const mongoose = require('mongoose');
 const config = require('./scripts/config.json');
 
@@ -44,10 +44,24 @@ gtfs.getStops(agency_key)
   }));
 })
 .then(tripData => {
+  let output = '';
   tripData[0].forEach(trip => {
+    let names = trip.map(stoptime => { return system.stops[stoptime.stop_id].stop_name });
+    output += `${names.join(',')}\n`;
     let times = trip.map(stoptime => { return stoptime.arrival_time });
-    //console.log(times.join(','));
+    output += `${times.join(',')}\n`;
   });
+
+  const filename = `${route_id}.csv`;
+  return new Promise(function(resolve, reject) {
+    fs.writeFile(filename, output, function(err) {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+})
+.then(none => {
+   console.log('saved'); 
 })
 .catch(console.log.bind(console))
 .then(() => {
