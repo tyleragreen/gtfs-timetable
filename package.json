@@ -9,6 +9,9 @@
   ],
   "author": "Tyler A. Green <greent@tyleragreen.com>",
   "license": "ISC",
+  "engines": {
+    "node": ">= 7.2.1"
+  },
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
