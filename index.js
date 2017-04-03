@@ -4,12 +4,34 @@ const mongoose = require('mongoose');
 const config = require('./scripts/config.json');
 
 const agency_key = config.agencies[0].agency_key;
+const start_date = 20170216;
+const end_date = 20170217;
 const route_id = '16';
 const direction_id = '';
 const system = {};
 
 mongoose.Promise = global.Promise;
 mongoose.connect(config.mongoUrl);
+
+const timeIsGreater = (a,b) => {
+  let time1 = a.split(':');
+  let hours1 = parseInt(time1[0]);
+  let min1 = parseInt(time1[1]);
+  let sec1 = parseInt(time1[2]);
+  
+  let time2 = b.split(':');
+  let hours2 = parseInt(time2[0]);
+  let min2 = parseInt(time2[1]);
+  let sec2 = parseInt(time2[2]);
+  
+  if (hours1 > hours2) return true;
+  if (hours1 < hours2) return false;
+  if (min1 > min2) return true;
+  if (min1 < min2) return false;
+  if (sec1 > sec2) return true;
+  if (sec1 < sec2) return false;
+  return false;
+};
 
 const saveStops = (stops) => {
   system.stops = stops.reduce(function(obj, stop, i) {
@@ -34,6 +56,13 @@ const saveDirections = (directions, route_id) => {
   //}, {});
 };
 
+const saveCalendars = (calendars) => {
+  system.calendars = calendars.reduce((obj, calendar, i) => {
+    obj[calendar.service_id] = calendar;
+    return obj;
+  }, {});
+};
+
 const makeTable = async (route_id) => {
   try {
     const stops = await gtfs.getStops(agency_key);
@@ -44,15 +73,35 @@ const makeTable = async (route_id) => {
     const trips = await gtfs.getTripsByRouteAndDirection(agency_key, route_id, direction_id);
     saveTrips(trips);
     
+    // Searching for only Monday for now
+    const calendars = await gtfs.getCalendars(agency_key,start_date,end_date,1,0,0,0,0,0,0);
+    // Searching for Mon-Fri for now
+    //const calendars = await gtfs.getCalendars(agency_key,start_date,end_date,1,1,1,1,1,0,0);
+    saveCalendars(calendars);
+    
     let tripData = await Promise.all(system.directions[route_id].map(direction => {
-        let tripList = trips.filter(trip => trip.trip_headsign === direction);
+      let tripList = trips.filter(trip => trip.trip_headsign === direction);
+      
+      // Filter the trip list by those having a requested service_id
+      tripList = tripList.filter(trip => calendars.map(calendar => calendar.service_id).includes(trip.service_id));
         
-        return Promise.all(tripList.map(trip => {
-          return gtfs.getStoptimesByTrip(agency_key, trip.trip_id);
-        }));
+      return Promise.all(tripList.map(trip => {
+        return gtfs.getStoptimesByTrip(agency_key, trip.trip_id);
+      }));
     }));
     
     let output = '';
+    tripData[0].sort((a,b) => {
+      let time1 = a[0].arrival_time;
+      let time2 = b[0].arrival_time;
+      if (timeIsGreater(time1,time2)) {
+        return 1;
+      } else if (timeIsGreater(time2, time1)) {
+        return -1;
+      } else {
+        return 0;
+      }
+    });
     tripData[0].forEach(trip => {
       let names = trip.map(stoptime => { return system.stops[stoptime.stop_id].stop_name });
       output += `${trip[0].trip_id},${system.trips[trip[0].trip_id].service_id},${names.join(',')}\n`;
