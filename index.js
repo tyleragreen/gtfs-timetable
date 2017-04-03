@@ -32,7 +32,11 @@ gtfs.getStops(agency_key)
 })
 // Partition the list of trips into headsigns
 .then(trips => {
-  //console.log('trips',trips);
+  //console.log('trips',trips.filter(trip => { return trip.trip_id === '114283020' || trip.trip_id === '114283030' }));
+  system.trips = trips.reduce(function(obj, trip, i) {
+    obj[trip.trip_id] = trip;
+    return obj;
+  }, {});
   
   return Promise.all(system.directions[route_id].map(direction => {
     let tripList = trips.filter(trip => trip.trip_headsign === direction);
@@ -45,11 +49,12 @@ gtfs.getStops(agency_key)
 })
 .then(tripData => {
   let output = '';
+  //console.log('time',tripData[0][0]);
   tripData[0].forEach(trip => {
     let names = trip.map(stoptime => { return system.stops[stoptime.stop_id].stop_name });
-    output += `${names.join(',')}\n`;
+    output += `${trip[0].trip_id},${system.trips[trip[0].trip_id].service_id},${names.join(',')}\n`;
     let times = trip.map(stoptime => { return stoptime.arrival_time });
-    output += `${times.join(',')}\n`;
+    output += `${trip[0].trip_id},${system.trips[trip[0].trip_id].service_id},${times.join(',')}\n`;
   });
 
   const filename = `${route_id}.csv`;
