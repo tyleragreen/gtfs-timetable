@@ -44,29 +44,28 @@ const makeTable = async (route_id) => {
     const trips = await gtfs.getTripsByRouteAndDirection(agency_key, route_id, direction_id);
     saveTrips(trips);
     
-    Promise.all(system.directions[route_id].map(direction => {
+    let tripData = await Promise.all(system.directions[route_id].map(direction => {
         let tripList = trips.filter(trip => trip.trip_headsign === direction);
         
         return Promise.all(tripList.map(trip => {
           return gtfs.getStoptimesByTrip(agency_key, trip.trip_id);
         }));
-    }))
-    .then(tripData => {
-      let output = '';
-      tripData[0].forEach(trip => {
-        let names = trip.map(stoptime => { return system.stops[stoptime.stop_id].stop_name });
-        output += `${trip[0].trip_id},${system.trips[trip[0].trip_id].service_id},${names.join(',')}\n`;
-        let times = trip.map(stoptime => { return stoptime.arrival_time });
-        output += `${trip[0].trip_id},${system.trips[trip[0].trip_id].service_id},${times.join(',')}\n`;
-      });
+    }));
     
-      const filename = `${route_id}.csv`;
-      return new Promise(function(resolve, reject) {
-        fs.writeFile(filename, output, function(err) {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
+    let output = '';
+    tripData[0].forEach(trip => {
+      let names = trip.map(stoptime => { return system.stops[stoptime.stop_id].stop_name });
+      output += `${trip[0].trip_id},${system.trips[trip[0].trip_id].service_id},${names.join(',')}\n`;
+      let times = trip.map(stoptime => { return stoptime.arrival_time });
+      output += `${trip[0].trip_id},${system.trips[trip[0].trip_id].service_id},${times.join(',')}\n`;
+    });
+    
+    const filename = `${route_id}.csv`;
+    
+    fs.writeFile(filename, output, function(err) {
+      if (err) throw(err);
+      console.log('done');
+      process.exit();
     });
     
   } catch (err) {
