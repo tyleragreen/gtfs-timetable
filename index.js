@@ -81,7 +81,33 @@ const calculateRouteStopPatterns = (trips) => {
   return route_stop_patterns;
 };
 
-const createView = (trips) => {
+const calculateLinks = route_stop_patterns => {
+  const links = [];
+  let i = 0;
+  
+  for (i = 0; i < route_stop_patterns.length-1; i++) {
+    const first_pattern = route_stop_patterns[i];
+    const second_pattern = route_stop_patterns[i+1];
+    
+    first_pattern.forEach((stop,index) => {
+      const indexOfStop = second_pattern.indexOf(stop);
+      
+      if (indexOfStop !== -1) {
+        const new_link = [ index, indexOfStop ];
+        links.push(new_link);
+      }
+    });
+  }
+  
+  return links;
+};
+
+const calculateStopHeader = trips => {
+  const route_stop_patterns = calculateRouteStopPatterns(trips);
+  const links = calculateLinks(route_stop_patterns);
+};
+
+const createView = trips => {
   let output = '';
   trips.sort((a,b) => {
     let time1 = a[0].arrival_time;
@@ -95,7 +121,7 @@ const createView = (trips) => {
     }
   });
   
-  const route_stop_patterns = calculateRouteStopPatterns(trips);
+  const stopHeader = calculateStopHeader(trips);
   
   trips.forEach(trip => {
     let names = trip.map(stoptime => { return system.stops[stoptime.stop_id].stop_name });
