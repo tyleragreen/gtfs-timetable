@@ -47,6 +47,72 @@ const saveTrips = (trips) => {
   }, {});
 };
 
+const arraysEqual = (a,b) => {
+  if (a.length !== b.length) {
+    return false;
+  }
+  
+  return a.map((elem, index) => {
+    return elem === b[index];
+  })
+  .every((elem) => {
+    return elem===true;
+  });
+};
+
+const createRouteStopPattern = (trip) => {
+  return trip.map((stoptime) => {
+    return stoptime.stop_id;
+  });
+};
+
+const calculateRouteStopPatterns = (trips) => {
+  // the first trip will be a route stop pattern route stop pattern
+  const route_stop_patterns = [ createRouteStopPattern(trips[0]) ];
+  trips.forEach(trip => {
+    let potential_rsp = createRouteStopPattern(trip);
+    let new_pattern = route_stop_patterns.map((rsp) => { return arraysEqual(potential_rsp, rsp) }).every((elem)=>{return elem===false});
+
+    if (new_pattern) {
+      route_stop_patterns.push(potential_rsp);
+    }
+  });
+  
+  return route_stop_patterns;
+};
+
+const createView = (trips) => {
+  let output = '';
+  trips.sort((a,b) => {
+    let time1 = a[0].arrival_time;
+    let time2 = b[0].arrival_time;
+    if (timeIsGreater(time1,time2)) {
+      return 1;
+    } else if (timeIsGreater(time2, time1)) {
+      return -1;
+    } else {
+      return 0;
+    }
+  });
+  
+  const route_stop_patterns = calculateRouteStopPatterns(trips);
+  
+  trips.forEach(trip => {
+    let names = trip.map(stoptime => { return system.stops[stoptime.stop_id].stop_name });
+    output += `${trip[0].trip_id},${system.trips[trip[0].trip_id].service_id},${names.join(',')}\n`;
+    let times = trip.map(stoptime => { return stoptime.arrival_time });
+    output += `${trip[0].trip_id},${system.trips[trip[0].trip_id].service_id},${times.join(',')}\n`;
+  });
+  
+  const filename = `${route_id}.csv`;
+  
+  fs.writeFile(filename, output, function(err) {
+    if (err) throw(err);
+    console.log('done');
+    process.exit();
+  });
+};
+
 const saveDirections = (directions, route_id) => {
   system.directions = {};
   system.directions[route_id] = directions.map(direction => direction.trip_headsign);
@@ -90,32 +156,7 @@ const makeTable = async (route_id) => {
       }));
     }));
     
-    let output = '';
-    tripData[0].sort((a,b) => {
-      let time1 = a[0].arrival_time;
-      let time2 = b[0].arrival_time;
-      if (timeIsGreater(time1,time2)) {
-        return 1;
-      } else if (timeIsGreater(time2, time1)) {
-        return -1;
-      } else {
-        return 0;
-      }
-    });
-    tripData[0].forEach(trip => {
-      let names = trip.map(stoptime => { return system.stops[stoptime.stop_id].stop_name });
-      output += `${trip[0].trip_id},${system.trips[trip[0].trip_id].service_id},${names.join(',')}\n`;
-      let times = trip.map(stoptime => { return stoptime.arrival_time });
-      output += `${trip[0].trip_id},${system.trips[trip[0].trip_id].service_id},${times.join(',')}\n`;
-    });
-    
-    const filename = `${route_id}.csv`;
-    
-    fs.writeFile(filename, output, function(err) {
-      if (err) throw(err);
-      console.log('done');
-      process.exit();
-    });
+    createView(tripData[0]);
     
   } catch (err) {
     console.log(err);
