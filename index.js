@@ -102,9 +102,50 @@ const calculateLinks = route_stop_patterns => {
   return links;
 };
 
+const formStopList = (route_stop_patterns, links) => {
+  let a_pos = 0;
+  let b_pos = 0;
+  const stops = [];
+  
+  const first_pattern = route_stop_patterns[0];
+  const second_pattern = route_stop_patterns[1];
+  
+  links.forEach(link => {
+    if (first_pattern[link[0]] !== second_pattern[link[1]]) {
+      throw 'links do not match';
+    }
+    
+    if (link[0] > a_pos) {
+      for (let i = a_pos; i < link[0]-1; i++) {
+        stops.push(first_pattern[i]);
+      }
+    }
+    if (link[1] > b_pos) {
+      for (let i = b_pos; i < link[1]-1; i++) {
+        stops.push(second_pattern[i]);
+      }
+    }
+    
+    stops.push(first_pattern[link[0]]);
+    a_pos = link[0];
+    b_pos = link[1];
+  });
+  
+  for (let i = a_pos+1; i < first_pattern.length-1; i++) {
+    stops.push(first_pattern[i]);
+  }
+  for (let i = b_pos+1; i < second_pattern.length-1; i++) {
+    stops.push(second_pattern[i]);
+  }
+  
+  return stops;
+};
+
 const calculateStopHeader = trips => {
   const route_stop_patterns = calculateRouteStopPatterns(trips);
   const links = calculateLinks(route_stop_patterns);
+  
+  return formStopList(route_stop_patterns, links);
 };
 
 const createView = trips => {
