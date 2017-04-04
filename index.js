@@ -116,19 +116,20 @@ const formStopList = (route_stop_patterns, links) => {
     }
     
     if (link[0] > a_pos) {
-      for (let i = a_pos; i < link[0]-1; i++) {
+      for (let i = a_pos; i < link[0]; i++) {
         stops.push(first_pattern[i]);
       }
     }
     if (link[1] > b_pos) {
-      for (let i = b_pos; i < link[1]-1; i++) {
+      for (let i = b_pos; i < link[1]; i++) {
         stops.push(second_pattern[i]);
       }
     }
     
+    // Only have to add one stop name for the link
     stops.push(first_pattern[link[0]]);
-    a_pos = link[0];
-    b_pos = link[1];
+    a_pos = link[0]+1;
+    b_pos = link[1]+1;
   });
   
   for (let i = a_pos+1; i < first_pattern.length-1; i++) {
@@ -138,7 +139,9 @@ const formStopList = (route_stop_patterns, links) => {
     stops.push(second_pattern[i]);
   }
   
-  return stops;
+  return stops.map(stop_id => {
+    return system.stops[stop_id].stop_name;
+  });
 };
 
 const calculateStopHeader = trips => {
