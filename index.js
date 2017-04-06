@@ -164,7 +164,7 @@ const sortTrips = (a,b) => {
   }
 };
 
-const createView = trips => {
+const createView = (trips, route_id, direction_name) => {
   let output = '';
   trips.sort(sortTrips);
   
@@ -187,7 +187,7 @@ const createView = trips => {
     output += `${row.join(',')}\n`;
   });
   
-  const filename = `${route_id}.csv`;
+  const filename = `${route_id}_${direction_name.replace(/ /g,'_').replace(/\//g,'-').replace(/&/g,'-')}.csv`;
   
   fs.writeFile(filename, output, function(err) {
     if (err) throw(err);
@@ -236,7 +236,10 @@ const makeTable = async (route_id) => {
       }));
     }));
     
-    createView(tripData[0]);
+    tripData.forEach((trips, index) => {
+      let direction_name = directions[index].trip_headsign;
+      createView(trips, route_id, direction_name);
+    })
     
   } catch (err) {
     console.log(err);
