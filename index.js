@@ -139,9 +139,9 @@ const formStopList = (route_stop_patterns, links) => {
     stops.push(second_pattern[i]);
   }
   
-  return stops.map(stop_id => {
+  return stops;/*.map(stop_id => {
     return system.stops[stop_id].stop_name;
-  });
+  });*/
 };
 
 const calculateStopHeader = trips => {
@@ -167,11 +167,19 @@ const createView = trips => {
   
   const stopHeader = calculateStopHeader(trips);
   
+  output += `${stopHeader.map(stop_id => system.stops[stop_id].stop_name).join(',')}\n`;
+  
   trips.forEach(trip => {
-    let names = trip.map(stoptime => { return system.stops[stoptime.stop_id].stop_name });
-    output += `${trip[0].trip_id},${system.trips[trip[0].trip_id].service_id},${names.join(',')}\n`;
-    let times = trip.map(stoptime => { return stoptime.arrival_time });
-    output += `${trip[0].trip_id},${system.trips[trip[0].trip_id].service_id},${times.join(',')}\n`;
+    let row = new Array(stopHeader.length).fill('--');
+    trip.forEach(stoptime => {
+      let stop_id = stoptime.stop_id;
+      let stop_index = stopHeader.indexOf(stop_id);
+      if (stop_index === -1) {
+        throw `could not find stop for stoptime ${stoptime.arrival_time}`;
+      }
+      row[stop_index] = stoptime.arrival_time;
+    });
+    output += `${row.join(',')}\n`;
   });
   
   const filename = `${route_id}.csv`;
@@ -186,10 +194,6 @@ const createView = trips => {
 const saveDirections = (directions, route_id) => {
   system.directions = {};
   system.directions[route_id] = directions.map(direction => direction.trip_headsign);
-  //system.directions = directions.reduce((obj, direction, i) => {
-  //  obj[direction.trip_headsign] = direction;
-  //  return obj;
-  //}, {});
 };
 
 const saveCalendars = (calendars) => {
