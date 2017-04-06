@@ -151,19 +151,22 @@ const calculateStopHeader = trips => {
   return formStopList(route_stop_patterns, links);
 };
 
+const sortTrips = (a,b) => {
+  const time1 = a[0].arrival_time;
+  const time2 = b[0].arrival_time;
+  
+  if (timeIsGreater(time1,time2)) {
+    return 1;
+  } else if (timeIsGreater(time2, time1)) {
+    return -1;
+  } else {
+    return 0;
+  }
+};
+
 const createView = trips => {
   let output = '';
-  trips.sort((a,b) => {
-    let time1 = a[0].arrival_time;
-    let time2 = b[0].arrival_time;
-    if (timeIsGreater(time1,time2)) {
-      return 1;
-    } else if (timeIsGreater(time2, time1)) {
-      return -1;
-    } else {
-      return 0;
-    }
-  });
+  trips.sort(sortTrips);
   
   const stopHeader = calculateStopHeader(trips);
   
@@ -174,9 +177,11 @@ const createView = trips => {
     trip.forEach(stoptime => {
       let stop_id = stoptime.stop_id;
       let stop_index = stopHeader.indexOf(stop_id);
+      
       if (stop_index === -1) {
         throw `could not find stop for stoptime ${stoptime.arrival_time}`;
       }
+      
       row[stop_index] = stoptime.arrival_time;
     });
     output += `${row.join(',')}\n`;
