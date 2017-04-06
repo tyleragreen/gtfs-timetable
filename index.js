@@ -81,74 +81,74 @@ const calculateRouteStopPatterns = (trips) => {
   return route_stop_patterns;
 };
 
-const calculateLinks = route_stop_patterns => {
+const calculateLinks = (pattern_a, pattern_b) => {
   const links = [];
-  let i = 0;
   
-  for (i = 0; i < route_stop_patterns.length-1; i++) {
-    const first_pattern = route_stop_patterns[i];
-    const second_pattern = route_stop_patterns[i+1];
-    
-    first_pattern.forEach((stop,index) => {
-      const indexOfStop = second_pattern.indexOf(stop);
+  pattern_a.forEach((stop,index) => {
+    const indexOfStop = pattern_b.indexOf(stop);
       
-      if (indexOfStop !== -1) {
-        const new_link = [ index, indexOfStop ];
-        links.push(new_link);
-      }
-    });
-  }
+    if (indexOfStop !== -1) {
+      const new_link = [ index, indexOfStop ];
+      links.push(new_link);
+    }
+  });
   
   return links;
 };
 
-const formStopList = (route_stop_patterns, links) => {
+const formStopList = (route_stop_patterns) => {
   let a_pos = 0;
   let b_pos = 0;
-  const stops = [];
+  let i = 0;
   
-  const first_pattern = route_stop_patterns[0];
-  const second_pattern = route_stop_patterns[1];
+  let stops = route_stop_patterns[0];
   
-  links.forEach(link => {
-    if (first_pattern[link[0]] !== second_pattern[link[1]]) {
-      throw 'links do not match';
-    }
+  for (i = 0; i < route_stop_patterns.length-1; i++) {
+    let first_pattern = stops;
+    stops = [];
+    let second_pattern = route_stop_patterns[i+1];
     
-    if (link[0] > a_pos) {
-      for (let i = a_pos; i < link[0]; i++) {
-        stops.push(first_pattern[i]);
-      }
-    }
-    if (link[1] > b_pos) {
-      for (let i = b_pos; i < link[1]; i++) {
-        stops.push(second_pattern[i]);
-      }
-    }
+    let links = calculateLinks(first_pattern, second_pattern);
     
-    // Only have to add one stop name for the link
-    stops.push(first_pattern[link[0]]);
-    a_pos = link[0]+1;
-    b_pos = link[1]+1;
-  });
-  
-  for (let i = a_pos+1; i < first_pattern.length-1; i++) {
-    stops.push(first_pattern[i]);
+    links.forEach(link => {
+      if (first_pattern[link[0]] !== second_pattern[link[1]]) {
+        throw 'links do not match';
+      }
+      
+      // Do we have stops to catch up on for either pattern?
+      if (link[0] > a_pos) {
+        for (let i = a_pos; i < link[0]; i++) {
+          stops.push(first_pattern[i]);
+        }
+      }
+      if (link[1] > b_pos) {
+        for (let i = b_pos; i < link[1]; i++) {
+          stops.push(second_pattern[i]);
+        }
+      }
+      
+      // Only have to add one stop name for the link
+      stops.push(first_pattern[link[0]]);
+      a_pos = link[0]+1;
+      b_pos = link[1]+1;
+    });
+    
+    // Add any end-of-line differences between patterns
+    for (let i = a_pos+1; i < first_pattern.length-1; i++) {
+      stops.push(first_pattern[i]);
+    }
+    for (let i = b_pos+1; i < second_pattern.length-1; i++) {
+      stops.push(second_pattern[i]);
+    }
   }
-  for (let i = b_pos+1; i < second_pattern.length-1; i++) {
-    stops.push(second_pattern[i]);
-  }
   
-  return stops;/*.map(stop_id => {
-    return system.stops[stop_id].stop_name;
-  });*/
+  return stops;
 };
 
 const calculateStopHeader = trips => {
   const route_stop_patterns = calculateRouteStopPatterns(trips);
-  const links = calculateLinks(route_stop_patterns);
   
-  return formStopList(route_stop_patterns, links);
+  return formStopList(route_stop_patterns);
 };
 
 const sortTrips = (a,b) => {
@@ -211,17 +211,18 @@ const saveCalendars = (calendars) => {
 const makeTable = async (route_id) => {
   try {
     const stops = await gtfs.getStops(agency_key);
-    saveStops(stops);
     const routes = await gtfs.getRoutesByAgency(agency_key);
     const directions = await gtfs.getDirectionsByRoute(agency_key, route_id);
-    saveDirections(directions, route_id);
     const trips = await gtfs.getTripsByRouteAndDirection(agency_key, route_id, direction_id);
-    saveTrips(trips);
     
     // Searching for only Monday for now
     const calendars = await gtfs.getCalendars(agency_key,start_date,end_date,1,0,0,0,0,0,0);
     // Searching for Mon-Fri for now
     //const calendars = await gtfs.getCalendars(agency_key,start_date,end_date,1,1,1,1,1,0,0);
+    
+    saveStops(stops);
+    saveDirections(directions, route_id);
+    saveTrips(trips);
     saveCalendars(calendars);
     
     let tripData = await Promise.all(system.directions[route_id].map(direction => {
