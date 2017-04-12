@@ -3,10 +3,12 @@ const fs = require('fs');
 const mongoose = require('mongoose');
 const config = require('./scripts/config.json');
 
-const agency_key = config.agencies[0].agency_key;
-const start_date = 20170216;
-const end_date = 20170217;
-const route_id = '16';
+const agency_key = config.agencies[1].agency_key;
+const start_date = 20170410;
+const end_date = 20170411;
+//const route_id = '16';
+const DIRECTION_IDS = [0,1];
+const route_id = 'Bu-127';
 const direction_id = '';
 const system = {};
 
@@ -107,6 +109,8 @@ const formStopList = (route_stop_patterns) => {
     let first_pattern = stops;
     stops = [];
     let second_pattern = route_stop_patterns[i+1];
+    a_pos = 0;
+    b_pos = 0;
     
     let links = calculateLinks(first_pattern, second_pattern);
     
@@ -134,10 +138,10 @@ const formStopList = (route_stop_patterns) => {
     });
     
     // Add any end-of-line differences between patterns
-    for (let i = a_pos+1; i < first_pattern.length-1; i++) {
+    for (let i = a_pos; i < first_pattern.length; i++) {
       stops.push(first_pattern[i]);
     }
-    for (let i = b_pos+1; i < second_pattern.length-1; i++) {
+    for (let i = b_pos; i < second_pattern.length; i++) {
       stops.push(second_pattern[i]);
     }
   }
@@ -152,6 +156,8 @@ const calculateStopHeader = trips => {
 };
 
 const sortTrips = (a,b) => {
+  
+  // Sort the trips by the first stop time of each trip
   const time1 = a[0].arrival_time;
   const time2 = b[0].arrival_time;
   
@@ -179,7 +185,7 @@ const createView = (trips, route_id, direction_name) => {
       let stop_index = stopHeader.indexOf(stop_id);
       
       if (stop_index === -1) {
-        throw `could not find stop for stoptime ${stoptime.arrival_time}`;
+        throw `could not find stop ${stop_id} for stoptime ${stoptime.arrival_time}`;
       }
       
       row[stop_index] = stoptime.arrival_time;
@@ -187,7 +193,8 @@ const createView = (trips, route_id, direction_name) => {
     output += `${row.join(',')}\n`;
   });
   
-  const filename = `${route_id}_${direction_name.replace(/ /g,'_').replace(/\//g,'-').replace(/&/g,'-')}.csv`;
+//  const filename = `${route_id}_${direction_name.replace(/ /g,'_').replace(/\//g,'-').replace(/&/g,'-')}.csv`;
+  const filename = `${route_id}_${direction_name}.csv`;
   
   fs.writeFile(filename, output, function(err) {
     if (err) throw(err);
@@ -211,35 +218,30 @@ const saveCalendars = (calendars) => {
 const makeTable = async (route_id) => {
   try {
     const stops = await gtfs.getStops(agency_key);
+    saveStops(stops);
     const routes = await gtfs.getRoutesByAgency(agency_key);
-    const directions = await gtfs.getDirectionsByRoute(agency_key, route_id);
-    const trips = await gtfs.getTripsByRouteAndDirection(agency_key, route_id, direction_id);
     
     // Searching for only Monday for now
     const calendars = await gtfs.getCalendars(agency_key,start_date,end_date,1,0,0,0,0,0,0);
-    // Searching for Mon-Fri for now
-    //const calendars = await gtfs.getCalendars(agency_key,start_date,end_date,1,1,1,1,1,0,0);
-    
-    saveStops(stops);
-    saveDirections(directions, route_id);
-    saveTrips(trips);
     saveCalendars(calendars);
     
-    let tripData = await Promise.all(system.directions[route_id].map(direction => {
-      let tripList = trips.filter(trip => trip.trip_headsign === direction);
+    let trips = await Promise.all(DIRECTION_IDS.map(direction_id => {
+      return gtfs.getTripsByRouteAndDirection(agency_key, route_id, direction_id);
+    }));
+    saveTrips(trips);
+    
+    let tripData = await Promise.all(DIRECTION_IDS.map(direction_id => {
+      let tripsfilter = trips[direction_id].filter(trip => calendars.map(calendar => calendar.service_id).includes(trip.service_id));
       
-      // Filter the trip list by those having a requested service_id
-      tripList = tripList.filter(trip => calendars.map(calendar => calendar.service_id).includes(trip.service_id));
-        
-      return Promise.all(tripList.map(trip => {
+      return Promise.all(tripsfilter.map(trip => {
         return gtfs.getStoptimesByTrip(agency_key, trip.trip_id);
       }));
     }));
     
-    tripData.forEach((trips, index) => {
-      let direction_name = directions[index].trip_headsign;
-      createView(trips, route_id, direction_name);
-    })
+    tripData.forEach((tripList, direction_id) => {
+      createView(tripList, route_id, direction_id);
+    });
+    //
     
   } catch (err) {
     console.log(err);

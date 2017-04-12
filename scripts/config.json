@@ -7,6 +7,13 @@
       "exclude": [
         "shapes"
       ]
+    },
+    {
+      "agency_key": "caltrain",
+      "url": "http://www.caltrain.com/Assets/GTFS/caltrain/CT-GTFS.zip",
+      "exclude": [
+        "shapes"
+      ]
     }
   ]
 }
