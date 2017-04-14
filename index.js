@@ -215,6 +215,31 @@ const saveCalendars = (calendars) => {
   }, {});
 };
 
+const getStopTimesPerRoute = async (route_id, resolve, reject) => {
+  try {
+    let trips = await Promise.all(DIRECTION_IDS.map(direction_id => {
+      return gtfs.getTripsByRouteAndDirection(agency_key, route_id, direction_id);
+    }));
+    saveTrips(trips);
+    
+    let tripData = await Promise.all(DIRECTION_IDS.map(direction_id => {
+      let tripsfilter = trips[direction_id].filter(trip => system.calendars[trip.service_id] !== "undefined");
+      
+      return Promise.all(tripsfilter.map(trip => {
+        return gtfs.getStoptimesByTrip(agency_key, trip.trip_id);
+      }));
+    }));
+    
+    resolve({ route_id: route_id,
+              stoptimes: tripData });
+    
+    return tripData;
+  } catch (err) {
+    reject();
+    console.log(err);
+  }
+};
+
 const makeTable = async (route_id) => {
   try {
     const stops = await gtfs.getStops(agency_key);
@@ -225,23 +250,20 @@ const makeTable = async (route_id) => {
     const calendars = await gtfs.getCalendars(agency_key,start_date,end_date,1,0,0,0,0,0,0);
     saveCalendars(calendars);
     
-    let trips = await Promise.all(DIRECTION_IDS.map(direction_id => {
-      return gtfs.getTripsByRouteAndDirection(agency_key, route_id, direction_id);
+    let routeData = await Promise.all(routes.map(route => {
+      return new Promise((resolve, reject) => {
+        return getStopTimesPerRoute(route.route_id, resolve, reject);
+      });
     }));
-    saveTrips(trips);
     
-    let tripData = await Promise.all(DIRECTION_IDS.map(direction_id => {
-      let tripsfilter = trips[direction_id].filter(trip => calendars.map(calendar => calendar.service_id).includes(trip.service_id));
+    routeData.forEach((route, index) => {
+      let id = route.route_id;
+      let tripData = route.stoptimes;
       
-      return Promise.all(tripsfilter.map(trip => {
-        return gtfs.getStoptimesByTrip(agency_key, trip.trip_id);
-      }));
-    }));
-    
-    tripData.forEach((tripList, direction_id) => {
-      createView(tripList, route_id, direction_id);
+      tripData.forEach((tripList, direction_id) => {
+        createView(tripList, id, direction_id);
+      });
     });
-    //
     
   } catch (err) {
     console.log(err);
